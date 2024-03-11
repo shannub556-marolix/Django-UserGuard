@@ -1,1 +1,2 @@
 # UserManagement_sys
+I developed a comprehensive User Management System using Django, a high-level Python web framework. The system includes features such as user registration, login, profile management, and password reset functionalities with otp Authentication and sms for Successful registration. Leveraging Django's built-in authentication system and REST framework, users can securely register, authenticate, and manage their profiles within the application.

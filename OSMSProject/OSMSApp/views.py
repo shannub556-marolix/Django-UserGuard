@@ -14,15 +14,19 @@ from django.http import JsonResponse,HttpResponseRedirect
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.core.cache import cache
-from .password_reset_file import reset_password
+from .password_reset_file import reset_password 
 from .send_otp_logic import sendOtp
 from .renderers import UserRenderer
 from .models import User
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.shortcuts import redirect
+from django.shortcuts import redirect,reverse
 from .Sms import Message
+import jwt
+
+
+SECRET_KEY = 'django-insecure-)x(whe5a#q(pm@^oyz-7m9h#%dpwjo7_ds5qfkeh1-ns@mb@gw'
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -31,6 +35,11 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
+def decode_access_token(token):
+    payload = jwt.decode(jwt=token, key=SECRET_KEY, algorithms=['HS256'])
+    return payload['user_id']
+
 
 class Home(APIView):
     renderer_classes = [UserRenderer]
@@ -64,6 +73,8 @@ class userlogin(APIView):
     renderer_classes = [UserRenderer]
     #template_name = 'templates/Home.html'
     def get(self, request, format=None):
+        if 'auth' in request.COOKIES:
+            return redirect('viewprofile')
         return render(request,'login.html')
     def post(self, request, formate=None):
         try:
@@ -74,14 +85,10 @@ class userlogin(APIView):
                 user = authenticate(email = email, password=password)
                 if user is not None:
                     user = User.objects.get(email = email)
-                    uid = urlsafe_base64_encode(force_bytes(user.id))
-                    print('Encoded UID', uid)
-                    token = PasswordResetTokenGenerator().make_token(user)
-                    print('Password Reset Token', token)
-                    link = 'login-user/'+uid+'/'+token+'/'
-                    print('Password Reset Link', link)
                     Tokens=get_tokens_for_user(user)
-                    return HttpResponseRedirect(link)
+                    response= HttpResponseRedirect('profile/')
+                    response.set_cookie('auth',Tokens['access'])
+                    return response
                 else:
                     return render(request, 'login1.html')
             return render(request, 'login1.html')     
@@ -90,28 +97,29 @@ class userlogin(APIView):
         
 class userlogin2(userlogin):
     def get(self, request, format=None):
+        if 'auth' in request.COOKIES:
+            return redirect('viewprofile')
         return render(request,'profile2.html')
 
 
     
 class profileview(APIView):
     renderer_classes = [UserRenderer]
-    def get(self, request, uid, token, format=None):
+    def get(self, request, format=None):
+        if 'auth' in request.COOKIES:
+            access=request.COOKIES['auth']
         try:
-            self.uid = uid
-            self.token = token
-            id = smart_str(urlsafe_base64_decode(uid))
+            id=decode_access_token(access)
             user = User.objects.get(id=id)
             serializer=ProfileSerializer(user)
             data={"id":serializer.data['id'],"name":serializer.data['name'],"email":serializer.data['email']}
-            if not PasswordResetTokenGenerator().check_token(user, token):
-                return redirect('login1')
-            #return Response({'msg':'Password Reset Successfully'}, status=status.HTTP_200_OK)
-            return render(request,'profile.html',data)
-        except DjangoUnicodeDecodeError as identifier:
+        except:
             return redirect('login1')
-    def post(self, request, uid, token, format=None):
-        return redirect('login')
+        return render(request,'profile.html',data)
+    def post(self, request, format=None):
+        response = redirect('login')
+        response.delete_cookie('auth')
+        return response
         
     
 class userlogout(APIView):       #here we have to pass access token 
@@ -179,8 +187,7 @@ class Checkpass(APIView):
         user.set_password(password)
         user.save()
         cache.delete(email)
-        data={"id":serializer.data['id'],"name":serializer.data['name'],"email":serializer.data['email']}
-        return render(request,'profile.html',data)
+        return redirect('login')
 
 
 

@@ -8,8 +8,8 @@ urlpatterns = [
     path('forget/', Forget.as_view(), name="forget"),
     path('forget1/', Forget1.as_view(), name="forget1"),
     path('logout/', userlogout.as_view(), name="logout"),
-    path('registration/login/login-user/<uid>/<token>/', profileview.as_view(), name="viewprofile"),
-    path('registration/login1/login-user/<uid>/<token>/', profileview.as_view(), name="viewprofile"),
+    path('registration/login/profile/', profileview.as_view(), name="viewprofile"),
+    path('registration/login1/profile/', profileview.as_view(), name="viewprofile"),
     path('forget/check-pass/<uid>/<token>/', Checkpass.as_view(), name="Checkpass"),
     path('forget1/check-pass/<uid>/<token>/', Checkpass.as_view(), name="Checkpass"),
     
